@@ -88,6 +88,9 @@ IF EXIST ""%appdata%\Microsoft\Windows\Start Menu\Programs\{typeof(App).Namespac
 
         private async Task BuildProjects((string name, string project, string publishTo)[] projects)
         {
+            // this atm only works for dotnet core apps.
+            // for properly building and deploying clickonce apps, need to gather the current version deployed on server, then run this:
+            /// C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin>msbuild c:\Users\davep\source\repos\continuous-deployment\src\ContinuousDeployment\ContinuousDeployment\ContinuousDeployment.csproj /target:publish /p:Configuration=Release;PublishDir=C:\Users\davep\Desktop\test\;ApplicationVersion=1.2.3.5
             await Task.WhenAll(projects.Select(async project =>
             {
                 var index = LogMessage($"Building {project.name} to {project.publishTo}", Brushes.DeepSkyBlue);
@@ -101,6 +104,7 @@ IF EXIST ""%appdata%\Microsoft\Windows\Start Menu\Programs\{typeof(App).Namespac
 
         private Task<(string name, string project, string publishTo)[]> FindAllProjects(string repository, string deploymentType)
         {
+            // this atm only works for dotnet core apps. have to find other projects, too (mainly, ones with clickonce in it)
             var solutionPath = $@"{RepositoryRoot}\{repository}";
             var projectFiles = Directory.GetFiles(solutionPath, "*.csproj", SearchOption.AllDirectories)
                 .Select(project => new
