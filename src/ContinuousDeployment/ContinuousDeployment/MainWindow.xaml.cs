@@ -76,7 +76,7 @@ IF EXIST ""%appdata%\Microsoft\Windows\Start Menu\Programs\{typeof(App).Namespac
                 var request = await WaitForRequestAsync();
                 LogMessage($"Got deployment request for '{request.deploymentType}' to {request.repository}\n", Brushes.SlateBlue);
                 var status = await PullUpdatesFromGithub(request.repository);
-                LogMessage($"Github:\n{string.Join("\n", status)}", Brushes.ForestGreen);
+                LogMessage($"Github:\n{status}", Brushes.ForestGreen);
                 var projects = await FindAllProjects(request.repository, request.deploymentType);
                 LogMessage($"Projects to build: {projects.Length}\n", Brushes.White);
                 await BuildProjects(projects);
@@ -157,16 +157,11 @@ IF EXIST ""%appdata%\Microsoft\Windows\Start Menu\Programs\{typeof(App).Namespac
             Console.ScrollToBottom();
         }
 
-        private async Task<IEnumerable<string>> PullUpdatesFromGithub(string repository)
+        private async Task<string> PullUpdatesFromGithub(string repository)
         {
-            var output = new List<string>
-            {
-                "git fetch origin master",
-                await AsyncProcessHelper.RunAsync("git", "fetch origin master", $@"{RepositoryRoot}\{repository}"),
-                "git reset --hard origin/master",
-                await AsyncProcessHelper.RunAsync("git", "reset --hard origin/master", $@"{RepositoryRoot}\{repository}")
-            };
-            return output;
+            await AsyncProcessHelper.RunAsync("git", "fetch origin master", $@"{RepositoryRoot}\{repository}");
+            await AsyncProcessHelper.RunAsync("git", "reset --hard origin/master", $@"{RepositoryRoot}\{repository}");
+            return await AsyncProcessHelper.RunAsync("git", "show --stat --oneline HEAD", $@"{RepositoryRoot}\{repository}");
         }
 
         /// <summary>
