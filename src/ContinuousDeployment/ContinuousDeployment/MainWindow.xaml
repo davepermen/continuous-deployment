@@ -1,0 +1,28 @@
+﻿<Window x:Class="ContinuousDeployment.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ContinuousDeployment"
+        mc:Ignorable="d"
+        Background="Black"
+        Foreground="White"
+        Title="MainWindow" FontFamily="Consolas" FontSize="14" FontWeight="ExtraBlack" Height="450" Width="800">
+    <Grid Margin="7">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0">Listening to changes...</TextBlock>
+            <ScrollViewer Grid.Row="1" Margin="0 7" x:Name="Console" ScrollViewer.VerticalScrollBarVisibility="Visible">
+                <StackPanel x:Name="Log" />
+            </ScrollViewer>
+        </Grid>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <TextBlock>Current Version: </TextBlock>
+            <TextBlock x:Name="Version"></TextBlock>
+        </StackPanel>
+    </Grid>
+</Window>
