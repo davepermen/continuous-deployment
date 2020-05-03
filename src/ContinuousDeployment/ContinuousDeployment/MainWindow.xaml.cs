@@ -4,6 +4,7 @@ using System.Deployment.Application;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
@@ -100,6 +101,14 @@ IF EXIST ""%appdata%\Microsoft\Windows\Start Menu\Programs\{typeof(App).Namespac
             LogMessage($"Projects to build: {projects.Length}\n", Brushes.White);
             await BuildProjects(projects);
             LogMessage($"done", Brushes.White);
+
+            await Notify(request.repository);
+        }
+
+        private async Task Notify(string repository)
+        {
+            var client = new HttpClient();
+            await client.GetAsync($"https://wirepusher.com/send?id=mpgpt&title=Continuous%20Deployment&message={repository}%20successfully%20deployed&type=Server");
         }
 
         private async Task BuildProjects((string name, string project, string publishTo)[] projects)
