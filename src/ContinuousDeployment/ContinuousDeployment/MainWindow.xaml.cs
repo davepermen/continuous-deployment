@@ -1,5 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using CliWrap.EventStream;
+using System;
 using System.Deployment.Application;
 using System.IO;
 using System.Linq;
@@ -20,11 +20,19 @@ namespace ContinuousDeployment
 
             Version.Text = ApplicationDeployment.IsNetworkDeployed ? ApplicationDeployment.CurrentDeployment.CurrentVersion.ToString() : Assembly.GetExecutingAssembly().GetName().Version.ToString();
 
-            var _ = Loop();
 
-            RegisterForAutostart();
+            if (ApplicationDeployment.IsNetworkDeployed)
+            {
+                RegisterForAutostart();
 
-            TryUpdatingApplication();
+                TryUpdatingApplication();
+
+                var _ = Loop();
+            }
+            else
+            {
+                var _ = Build("Server Deployment", "davepermen\\website");
+            }
         }
 
         private string RepositoryRoot => $@"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}\source\repos";
@@ -74,16 +82,24 @@ IF EXIST ""%appdata%\Microsoft\Windows\Start Menu\Programs\{typeof(App).Namespac
             while (true)
             {
                 var request = await WaitForRequestAsync();
-                LogMessage($"Got deployment request for '{request.deploymentType}' to {request.repository}\n", Brushes.SlateBlue);
-                var status = await PullUpdatesFromGithub(request.repository);
-                LogMessage($"Github:\n{status}", Brushes.ForestGreen);
-                var projects = await FindAllProjects(request.repository, request.deploymentType);
-                LogMessage($"Projects to build: {projects.Length}\n", Brushes.White);
-                await BuildProjects(projects);
-                LogMessage($"done", Brushes.White);
+
+                await Build(request.deploymentType, request.repository);
 
                 TryUpdatingApplication();
             }
+        }
+
+        private async Task Build(string deploymentType, string repository)
+        {
+            var request = (deploymentType, repository);
+            LogMessage($"Got deployment request for '{request.deploymentType}' to {request.repository}\n", Brushes.SlateBlue);
+            
+            await PullUpdatesFromGithub(request.repository);
+
+            var projects = await FindAllProjects(request.repository, request.deploymentType);
+            LogMessage($"Projects to build: {projects.Length}\n", Brushes.White);
+            await BuildProjects(projects);
+            LogMessage($"done", Brushes.White);
         }
 
         private async Task BuildProjects((string name, string project, string publishTo)[] projects)
@@ -96,8 +112,8 @@ IF EXIST ""%appdata%\Microsoft\Windows\Start Menu\Programs\{typeof(App).Namespac
                 var index = LogMessage($"Building {project.name} to {project.publishTo}", Brushes.DeepSkyBlue);
                 File.WriteAllText($@"{project.publishTo}\app_offline.htm", @"<html><head><style>html { background: black }</style><meta http-equiv='refresh' content='2'></head></html>");
 
-                var output = await AsyncProcessHelper.RunAsync("dotnet", $"publish -o {project.publishTo} {project.project}");
-                LogMessage(index, string.Join("\n", output.Split('\n').Skip(3)), Brushes.LightGoldenrodYellow);
+                await Run("dotnet", $"publish -o {project.publishTo} {project.project}", null, index);
+
                 File.Delete($@"{project.publishTo}\app_offline.htm");
             }));
         }
@@ -149,7 +165,7 @@ IF EXIST ""%appdata%\Microsoft\Windows\Start Menu\Programs\{typeof(App).Namespac
             {
                 if (Log.Children[index] == after)
                 {
-                    Log.Children.Insert(index + 1, textBlock);
+                    Log.Children.Insert(index, textBlock);
                     return;
                 }
             }
@@ -157,11 +173,50 @@ IF EXIST ""%appdata%\Microsoft\Windows\Start Menu\Programs\{typeof(App).Namespac
             Console.ScrollToBottom();
         }
 
-        private async Task<string> PullUpdatesFromGithub(string repository)
+        private async Task Run(string executable, string parameters, string workingDirectory = null, TextBlock index = null)
         {
-            await AsyncProcessHelper.RunAsync("git", "fetch origin master", $@"{RepositoryRoot}\{repository}");
-            await AsyncProcessHelper.RunAsync("git", "reset --hard origin/master", $@"{RepositoryRoot}\{repository}");
-            return await AsyncProcessHelper.RunAsync("git", "show --stat --oneline HEAD", $@"{RepositoryRoot}\{repository}");
+            void log(string text, Brush color)
+            {
+                if(index == null)
+                {
+                    LogMessage(text, color);
+                } else
+                {
+                    LogMessage(index, text, color);
+                }
+            }
+
+            var cmd = CliWrap.Cli.Wrap(executable).WithArguments(parameters);
+            if (workingDirectory != null)
+            {
+                cmd = cmd.WithWorkingDirectory(workingDirectory);
+            }
+            await foreach (var cmdEvent in cmd.ListenAsync())
+            {
+                switch (cmdEvent)
+                {
+                    case StartedCommandEvent started:
+                        log($"Process started; ID: {started.ProcessId}", Brushes.SandyBrown);
+                        break;
+                    case StandardOutputCommandEvent stdOut:
+                        log($"Out> {stdOut.Text}", Brushes.LightGoldenrodYellow);
+                        break;
+                    case StandardErrorCommandEvent stdErr:
+                        log($"Err> {stdErr.Text}", Brushes.DarkRed);
+                        break;
+                    case ExitedCommandEvent exited:
+                        log($"Process exited; Code: {exited.ExitCode}", Brushes.DarkSlateBlue);
+                        break;
+                }
+            }
+        }
+
+        private async Task PullUpdatesFromGithub(string repository)
+        {
+            LogMessage($@"{RepositoryRoot}\{repository}", Brushes.Green);
+            await Run("git", "fetch origin master", $@"{RepositoryRoot}\{repository}");
+            await Run("git", "reset --hard origin/master", $@"{RepositoryRoot}\{repository}");
+            await Run("git", "show --stat --oneline HEAD", $@"{RepositoryRoot}\{repository}");
         }
 
         /// <summary>

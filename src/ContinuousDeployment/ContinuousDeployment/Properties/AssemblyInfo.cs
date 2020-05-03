@@ -12,7 +12,7 @@ using System.Windows;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("davepermen.net")]
 [assembly: AssemblyProduct("ContinuousDeployment")]
-[assembly: AssemblyCopyright("Copyright © davepermen.net 2018")]
+[assembly: AssemblyCopyright("Copyright © davepermen.net 2020")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
